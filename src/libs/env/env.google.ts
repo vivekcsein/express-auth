@@ -1,4 +1,6 @@
+import dotenv from "dotenv";
 import { z } from "zod";
+dotenv.config();
 
 // ✅ Load environment variables from .env file
 // ✅ Define schema with defaults and transformations

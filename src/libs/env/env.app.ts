@@ -1,4 +1,6 @@
+import dotenv from "dotenv";
 import { z } from "zod";
+dotenv.config();
 
 // ✅ Schema uses the actual env var names (with NEXT_PUBLIC_ prefix)
 const envConfigSchema = z.object({
