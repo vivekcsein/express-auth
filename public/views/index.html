@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="page-title">Backend Server</title>
+    <meta name="description" content="Backend Server" />
+    <link rel="icon" type="image/x-icon" href="../images/favicon.ico" />
+    <style>
+      html,
+      body {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+        font-size: 20px;
+        background-color: black;
+        color: white;
+      }
+
+      h1 {
+        font-size: 30px;
+        text-align: center;
+      }
+
+      p {
+        font-size: 20px;
+        text-align: center;
+      }
+
+      a {
+        color: #00bfff;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1 id="main-heading">Backend Server made by SparkVerse</h1>
+
+    <p id="site-link">Made for ❤️</p>
+    <br />
+
+    <p>Health routes : <a href="/api/health">/api/health</a></p>
+    <p>
+      Database connection routes :
+      <a href="/api/test/supabase-test">/api/database-test</a>
+    </p>
+
+    <script>
+      const siteName = "sparkverse.in";
+      const siteUrl = "https://sparkverse.in";
+      const siteDescription = "Backend Server";
+
+      document.getElementById("page-title").textContent =
+        `Backend Server for ${siteName}`;
+      document.getElementById("main-heading").textContent =
+        `Backend Server for ${siteName}`;
+
+      const siteLink = document.getElementById("site-link");
+      const anchor = document.createElement("a");
+      anchor.href = siteUrl;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.textContent = siteName;
+      siteLink.appendChild(anchor);
+    </script>
+  </body>
+</html>
