@@ -1,4 +1,3 @@
-import z from "zod";
 import { Request, Response } from "express";
 import { Session, User } from "@supabase/supabase-js";
 
@@ -8,6 +7,7 @@ import { IUserProfileRoleType } from "../../../types/users";
 import { loginSchema, registrationSchema } from "./auth.schemas";
 
 import {
+  getUserProfile,
   loginAuthHelper,
   logoutAuthHelper,
   registerAuthHelper,
@@ -99,13 +99,7 @@ export const loginAuthController = async (req: Request, res: Response) => {
       });
     }
 
-    const { data: roleData, error: roleError } = await supabase
-      .from("iLocalUsers")
-      .select("id, role")
-      .eq("email", email)
-      .single();
-
-    if (roleError) throw roleError;
+    const userDatafromDB = await getUserProfile(email);
 
     const accessTokenMaxAge = remember ? 86400000 : 900000; // 1 day or 15 min
     const refreshTokenMaxAge = remember ? 2592000000 : 604800000; // 30 or 7 days
@@ -128,9 +122,11 @@ export const loginAuthController = async (req: Request, res: Response) => {
     });
 
     const currentUser = {
-      id: roleData?.id,
+      id: userDatafromDB?.id,
       email,
-      role: (roleData?.role ?? "USER") as IUserProfileRoleType,
+      role: (userDatafromDB?.role ?? "USER") as IUserProfileRoleType,
+      fullname: userDatafromDB?.fullname ?? "",
+      avatar: userDatafromDB?.avatar ?? null,
       created_at: user.created_at,
       updated_at: user.updated_at,
       isUserVerified: user.user_metadata?.isUserVerified ?? false,
@@ -139,7 +135,7 @@ export const loginAuthController = async (req: Request, res: Response) => {
     return res.status(200).json({
       status: "success",
       message: "Login successful",
-      data: { currentUser },
+      data: currentUser,
     });
   } catch (error) {
     errorHandler(error, req, res);
@@ -186,27 +182,29 @@ export const profileAuthController = async (req: Request, res: Response) => {
         .status(401)
         .json({ status: "error", message: "Invalid token" });
     }
-
-    const { data: userData, error: userError } = await supabase
-      .from("iLocalUsers")
-      .select("id, email, role, created_at, updated_at")
-      .eq("id", user.id)
-      .single();
-
-    if (userError || !userData) {
+    if (!user.email) {
       return res
-        .status(404)
-        .json({ status: "error", message: "User not found" });
+        .status(401)
+        .json({ status: "error", message: "Invalid user email" });
     }
+
+    const userDatafromDB = await getUserProfile(user.email);
+
+    const currentUser = {
+      id: userDatafromDB?.id,
+      email: user.email,
+      role: (userDatafromDB?.role ?? "USER") as IUserProfileRoleType,
+      fullname: userDatafromDB?.fullname ?? "",
+      avatar: userDatafromDB?.avatar ?? null,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      isUserVerified: user.user_metadata?.isUserVerified ?? false,
+    };
 
     return res.status(200).json({
       status: "success",
-      data: {
-        currentUser: {
-          ...userData,
-          isUserVerified: user.user_metadata?.isUserVerified ?? false,
-        },
-      },
+      message: "User profile fetched successfully",
+      data: currentUser,
     });
   } catch (error) {
     errorHandler(error, req, res);

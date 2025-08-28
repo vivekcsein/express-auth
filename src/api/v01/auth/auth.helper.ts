@@ -16,6 +16,18 @@ interface LogoutResult {
 type LoginResult = AuthResponse["data"] | null;
 type RegisterResult = AuthResponse["data"] | null;
 
+export const getUserProfile = async (email: string) => {
+  const { data: userData, error: userError } = await supabase
+    .from("iLocalUsers")
+    .select("id, role, fullname, avatar")
+    .eq("email", email)
+    .single();
+
+  if (userError) throw userError;
+
+  return userData;
+};
+
 /**
  * Attempts to log in a user via Supabase.
  * @param email - User's email
