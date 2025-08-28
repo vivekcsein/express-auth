@@ -33,10 +33,6 @@ const corsOptions: cors.CorsOptions = {
     "X-Requested-With",
     "Accept",
     "Origin",
-    "Access-Control-Allow-Credentials",
-    "Access-Control-Allow-Origin",
-    "Access-Control-Request-Method",
-    "Access-Control-Request-Headers",
   ],
   exposedHeaders: ["Set-Cookie"],
 };

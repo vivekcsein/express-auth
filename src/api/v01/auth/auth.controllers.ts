@@ -5,6 +5,7 @@ import { errorHandler } from "./auth.error";
 import { supabase } from "../../../libs/db/db.supabase";
 import { IUserProfileRoleType } from "../../../types/users";
 import { loginSchema, registrationSchema } from "./auth.schemas";
+import { envBackendConfig } from "../../../libs/env/env.backend";
 
 import {
   getUserProfile,
@@ -12,6 +13,21 @@ import {
   logoutAuthHelper,
   registerAuthHelper,
 } from "./auth.helper";
+
+const isProd = process.env.NODE_ENV === "production";
+
+// Extract domain name only (no protocol, no port)
+const rawDomain = isProd
+  ? envBackendConfig.APP_BACKEND.replace(/^https?:\/\//, "").split(":")[0]
+  : "localhost"; // For local dev, cookies won't be shared cross-site anyway
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProd, // 🔐 Only true in production
+  sameSite: "none" as const, // 🔥 Required for cross-site cookie sharing
+  path: "/",
+  domain: isProd ? rawDomain : undefined, // Don't set domain in dev
+};
 
 //register controller
 export const registerAuthController = async (req: Request, res: Response) => {
@@ -104,19 +120,12 @@ export const loginAuthController = async (req: Request, res: Response) => {
     const accessTokenMaxAge = remember ? 86400000 : 900000; // 1 day or 15 min
     const refreshTokenMaxAge = remember ? 2592000000 : 604800000; // 30 or 7 days
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none" as const,
-      path: "/",
-    };
-
-    res.cookie("accessToken", session.access_token, {
+    res.cookie("accesstoken", session.access_token, {
       ...cookieOptions,
       maxAge: accessTokenMaxAge,
     });
 
-    res.cookie("refreshToken", session.refresh_token, {
+    res.cookie("refreshtoken", session.refresh_token, {
       ...cookieOptions,
       maxAge: refreshTokenMaxAge,
     });
@@ -146,8 +155,8 @@ export const logoutAuthController = async (req: Request, res: Response) => {
   try {
     await logoutAuthHelper();
 
-    res.clearCookie("accessToken", { path: "/" });
-    res.clearCookie("refreshToken", { path: "/" });
+    res.clearCookie("accesstoken", { path: "/" });
+    res.clearCookie("refreshtoken", { path: "/" });
 
     return res.status(200).json({
       status: "success",
@@ -167,7 +176,7 @@ export const logoutAuthController = async (req: Request, res: Response) => {
 
 export const profileAuthController = async (req: Request, res: Response) => {
   try {
-    const token = req.cookies.accessToken;
+    const token = req.cookies.accesstoken;
     if (!token) {
       return res.status(401).json({ status: "error", message: "Unauthorized" });
     }
