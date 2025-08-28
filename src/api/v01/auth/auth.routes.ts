@@ -7,5 +7,6 @@ const authRoutes: ReturnType<typeof Router> = Router();
 authRoutes.post("/login", authControllers.loginAuthController);
 authRoutes.post("/logout", authControllers.logoutAuthController);
 authRoutes.post("/register", authControllers.registerAuthController);
+authRoutes.post("/profile", authControllers.profileAuthController);
 
 export default authRoutes;

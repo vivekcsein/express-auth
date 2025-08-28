@@ -13,111 +13,6 @@ import {
   registerAuthHelper,
 } from "./auth.helper";
 
-//login controller
-export const loginAuthController = async (req: Request, res: Response) => {
-  try {
-    const parsed = loginSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("[Validation Error]", parsed.error.issues); // Avoid .format()
-      }
-
-      return res.status(400).json({
-        status: "failed",
-        message: "Invalid input",
-        errors: parsed.error.issues.map((issue) => ({
-          path: issue.path.join("."),
-          message: issue.message,
-          code: issue.code,
-        })),
-      });
-    }
-
-    const { email, password, remember } = parsed.data;
-
-    const result = await loginAuthHelper(email, password);
-    const { user, session } = result as { user: User; session: Session };
-
-    if (!session?.access_token || !session?.refresh_token) {
-      return res.status(500).json({
-        status: "error",
-        message: "Token generation failed",
-      });
-    }
-
-    const { data: roleData, error: roleError } = await supabase
-      .from("iLocalUsers")
-      .select("id, role")
-      .eq("email", email)
-      .single();
-
-    if (roleError) throw roleError;
-
-    const accessTokenMaxAge = remember ? 24 * 60 * 60 * 1000 : 15 * 60 * 1000; // 15 minutes or 1 days
-    const refreshTokenMaxAge = remember
-      ? 30 * 24 * 60 * 60 * 1000
-      : 7 * 24 * 60 * 60 * 1000; // 7 days or 30 days
-
-    res.cookie("accessToken", session.access_token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      path: "/",
-      maxAge: accessTokenMaxAge,
-    });
-
-    res.cookie("refreshToken", session.refresh_token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      path: "/",
-      maxAge: refreshTokenMaxAge,
-    });
-
-    const currentUser = {
-      id: roleData?.id,
-      email,
-      role: (roleData?.role ?? "USER") as IUserProfileRoleType,
-      created_at: user.created_at,
-      updated_at: user.updated_at,
-      isUserVerified: user.user_metadata?.isUserVerified ?? false,
-    };
-
-    return res.status(200).json({
-      status: "success",
-      message: "Login successful",
-      data: { currentUser },
-    });
-  } catch (error: unknown) {
-    errorHandler(error, req, res);
-  }
-};
-
-//logout controller
-export const logoutAuthController = async (req: Request, res: Response) => {
-  try {
-    const result = await logoutAuthHelper();
-
-    return res.status(200).json({
-      status: "success",
-      message: "Logout successful",
-      data: result,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown internal error";
-
-    console.error("Logout error:", error);
-
-    return res.status(500).json({
-      status: "error",
-      message: "Internal server error",
-      details: message,
-    });
-  }
-};
-
 //register controller
 export const registerAuthController = async (req: Request, res: Response) => {
   try {
@@ -169,5 +64,151 @@ export const registerAuthController = async (req: Request, res: Response) => {
     });
   } catch (error) {
     return errorHandler(error, req, res);
+  }
+};
+
+export const loginAuthController = async (req: Request, res: Response) => {
+  try {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[Validation Error]", parsed.error.issues);
+      }
+
+      return res.status(400).json({
+        status: "failed",
+        message: "Invalid input",
+        errors: parsed.error.issues.map(({ path, message, code }) => ({
+          path: path.join("."),
+          message,
+          code,
+        })),
+      });
+    }
+
+    const { email, password, remember } = parsed.data;
+    const { user, session } = (await loginAuthHelper(email, password)) as {
+      user: User;
+      session: Session;
+    };
+
+    if (!session?.access_token || !session?.refresh_token) {
+      return res.status(500).json({
+        status: "error",
+        message: "Token generation failed",
+      });
+    }
+
+    const { data: roleData, error: roleError } = await supabase
+      .from("iLocalUsers")
+      .select("id, role")
+      .eq("email", email)
+      .single();
+
+    if (roleError) throw roleError;
+
+    const accessTokenMaxAge = remember ? 86400000 : 900000; // 1 day or 15 min
+    const refreshTokenMaxAge = remember ? 2592000000 : 604800000; // 30 or 7 days
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none" as const,
+      path: "/",
+    };
+
+    res.cookie("accessToken", session.access_token, {
+      ...cookieOptions,
+      maxAge: accessTokenMaxAge,
+    });
+
+    res.cookie("refreshToken", session.refresh_token, {
+      ...cookieOptions,
+      maxAge: refreshTokenMaxAge,
+    });
+
+    const currentUser = {
+      id: roleData?.id,
+      email,
+      role: (roleData?.role ?? "USER") as IUserProfileRoleType,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      isUserVerified: user.user_metadata?.isUserVerified ?? false,
+    };
+
+    return res.status(200).json({
+      status: "success",
+      message: "Login successful",
+      data: { currentUser },
+    });
+  } catch (error) {
+    errorHandler(error, req, res);
+  }
+};
+
+export const logoutAuthController = async (req: Request, res: Response) => {
+  try {
+    await logoutAuthHelper();
+
+    res.clearCookie("accessToken", { path: "/" });
+    res.clearCookie("refreshToken", { path: "/" });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Logout successful",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Logout error:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Internal server error",
+      details: message,
+    });
+  }
+};
+
+export const profileAuthController = async (req: Request, res: Response) => {
+  try {
+    const token = req.cookies.accessToken;
+    if (!token) {
+      return res.status(401).json({ status: "error", message: "Unauthorized" });
+    }
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res
+        .status(401)
+        .json({ status: "error", message: "Invalid token" });
+    }
+
+    const { data: userData, error: userError } = await supabase
+      .from("iLocalUsers")
+      .select("id, email, role, created_at, updated_at")
+      .eq("id", user.id)
+      .single();
+
+    if (userError || !userData) {
+      return res
+        .status(404)
+        .json({ status: "error", message: "User not found" });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        currentUser: {
+          ...userData,
+          isUserVerified: user.user_metadata?.isUserVerified ?? false,
+        },
+      },
+    });
+  } catch (error) {
+    errorHandler(error, req, res);
   }
 };
