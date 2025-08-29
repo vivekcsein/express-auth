@@ -23,7 +23,7 @@ const rawDomain = isProd
 
 const cookieOptions = {
   httpOnly: true,
-  secure: isProd, // 🔐 Only true in production
+  secure: true, // 🔐 Only true in production
   sameSite: "none" as const, // 🔥 Required for cross-site cookie sharing
   path: "/",
   domain: isProd ? rawDomain : undefined, // Don't set domain in dev
@@ -176,7 +176,7 @@ export const logoutAuthController = async (req: Request, res: Response) => {
 
 export const profileAuthController = async (req: Request, res: Response) => {
   try {
-    const token = req.cookies.accesstoken;
+    const token = req.cookies.accesstoken as string;
     if (!token) {
       return res.status(401).json({ status: "error", message: "Unauthorized" });
     }
@@ -218,4 +218,49 @@ export const profileAuthController = async (req: Request, res: Response) => {
   } catch (error) {
     errorHandler(error, req, res);
   }
+};
+
+export const refreshTokenAuthController = async (
+  req: Request,
+  res: Response
+) => {
+  const token = req.cookies.refreshtoken as string;
+  const { remember } = req.body as { remember: boolean };
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ status: "error", message: "Unauthorized: No refresh token" });
+  }
+
+  // Attempt to refresh session using the refresh token
+  const { data, error } = await supabase.auth.refreshSession({
+    refresh_token: token,
+  });
+
+  if (error || !data.session) {
+    return res
+      .status(401)
+      .json({ status: "error", message: "Invalid or expired refresh token" });
+  }
+
+  const { access_token, refresh_token } = data.session;
+
+  const accessTokenMaxAge = remember ? 86400000 : 900000; // 1 day or 15 min
+  const refreshTokenMaxAge = remember ? 2592000000 : 604800000; // 30 or 7 days
+
+  // Set new cookies
+  res.cookie("accesstoken", access_token, {
+    ...cookieOptions,
+    maxAge: accessTokenMaxAge,
+  });
+
+  res.cookie("refreshtoken", refresh_token, {
+    ...cookieOptions,
+    maxAge: refreshTokenMaxAge,
+  });
+
+  return res
+    .status(200)
+    .json({ status: "success", message: "Session refreshed" });
 };
