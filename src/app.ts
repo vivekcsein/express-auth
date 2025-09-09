@@ -9,8 +9,9 @@ import { generalLimiter } from "./libs/middlewares/rateLimit";
 
 //routes handlers
 import testRoutes from "./api/test/test.routes";
-import authRoutes from "./api/v01/auth/auth.routes";
+// import authRoutes from "./api/v01/auth/auth.routes";
 import { errorHandler, NotFoundHandler } from "./libs/utils/NotFoundHandler";
+import authRoutes from "./api/v02/auth/auth.routes";
 
 const createApp = async (): Promise<express.Express> => {
   const app = express();
